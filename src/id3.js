@@ -23,7 +23,7 @@ var ID3=(function(){
 		{"estado":"nublado","humedad":"normal","viento":"leve","juego_tenis":"si"},
 		{"estado":"lluvia","humedad":"alta","viento":"fuerte","juego_tenis":"si"}
 	];
-	function calculateEntropyConjunt(table_training_pam){
+	function calculateFrequencieClass(table_training_pam){
 		var entropy_class={};
 		entropy_class["total"]=0;
 		for(var x=0,table_length=table_training_pam.length;x<table_length;x++){			
@@ -34,6 +34,17 @@ var ID3=(function(){
 			entropy_class["total"]+=1;
 		}	
 		return entropy_class;
+	}
+	function calculateEntropySet(set){
+		var entropy=0,homogeneous=false;;
+		for(var i=0,name_of_class=attributes[class_defined][i],length=attributes[class_defined].length;i<length;i++,name_of_class=attributes[class_defined][i]){
+			if(set[name_of_class]==set["total"]){
+				homogeneous=true;
+				break;
+			}
+			entropy=entropy-(set[name_of_class]/set["total"])*Math.log2((set[name_of_class]/set["total"]));
+		}
+		return {entropy:entropy,ishomogeneous:homogeneous}
 	}
 	function calculateFrequencies(){
 		var table_frequencies={},row_frequencies={};		
@@ -47,21 +58,44 @@ var ID3=(function(){
 				for(var i=0,table_training_length=table_training.length;i<table_training_length;i++)
 					if(table_training[i][attributes_label[x]]==attributes[attributes_label[x]][y])
 						row_frequencies[attributes_label[x]][attributes[attributes_label[x]][y]].push(table_training[i]);
-				table_frequencies[attributes_label[x]][attributes[attributes_label[x]][y]]=calculateEntropyConjunt(row_frequencies[attributes_label[x]][attributes[attributes_label[x]][y]]);				
+				table_frequencies[attributes_label[x]][attributes[attributes_label[x]][y]]=calculateFrequencieClass(row_frequencies[attributes_label[x]][attributes[attributes_label[x]][y]]);				
 				row_frequencies={};
 			}
 		}
 		return table_frequencies;
 	}
+	function execute(){
+		table_frequencies=calculateFrequencies();		
+		frequencie_class_for_set=calculateFrequencieClass(table_training);		
+		entropy_of_set=calculateEntropySet(frequencie_class_for_set);		
+		/* Calculate the entropies of each of the attributes in the set */		
+		entropies=[];
+		for(var i=0,attribute_label_name=attributes_label[i],attributes_label_length=attributes_label.length;i<attributes_label_length;i++,attribute_label_name=attributes_label[i]){
+			if(attributes_label[i]==class_defined)
+				continue;
+			table_frequencies[attribute_label_name]["entropy"]=0
+			for(var x=0,attributes_length=attributes[attribute_label_name].length;x<attributes_length;x++){
+				table_frequencie=table_frequencies[attribute_label_name][attributes[attribute_label_name][x]];
+				table_frequencies[attribute_label_name]["entropy"]+=(table_frequencie["total"]/frequencie_class_for_set["total"])*calculateEntropySet(table_frequencie)["entropy"];
+			}
+			table_frequencies[attribute_label_name]["entropy"]=entropy_of_set["entropy"]-table_frequencies[attribute_label_name]["entropy"];
+			entropies.push(table_frequencies[attribute_label_name]["entropy"]);
+		}
+	}
 	return{
 		init:function(data){
+			Math.log2 = Math.log2 || function(x){return Math.log(x)*Math.LOG2E;};
 			class_defined=data;
-		},
-		getEntropy:function(){
-			console.dir(calculateEntropyConjunt(table_training));
+			execute();
+		},		
+		getFrequencieClass:function(){
+			console.dir(calculateFrequencieClass(table_training));
 		},
 		getFrequencies:function(){
 			console.dir(calculateFrequencies());
+		},
+		getEntropy:function(){
+			console.dir(calculateEntropySet({ total: 14, no: 4, si: 10 }));
 		}
 	}
 })();
