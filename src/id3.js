@@ -1,5 +1,6 @@
 var ID3=(function(){
 	var class_defined;
+	Tree=new require("./class/tree.js");
 	var attributes_label=["estado","humedad","viento","juego_tenis"];
 	var attributes={
 		"estado":["soleado","nublado","lluvia"],
@@ -64,7 +65,7 @@ var ID3=(function(){
 		}
 		return table_frequencies;
 	}
-	function reduceSet(attribute_name,repeat,table_training){
+	function reduceSet(parent_node,attribute_name,repeat,table_training){
 		new_table=[];
 		if(repeat<7 && attributes[attribute_name]!=undefined){
 			for(var i=0,length=attributes[attribute_name].length;i<length;i++){
@@ -79,9 +80,14 @@ var ID3=(function(){
 					}
 				}				
 				repeat++;
-				if(!isHomogeneous(new_table,attributes[attribute_name][i]))
-					execute(repeat,new_table);
-				else{
+				if(!isHomogeneous(new_table,attributes[attribute_name][i])){
+					Tree.add(attributes[attribute_name][i],attribute_name);		
+					execute(attributes[attribute_name][i],repeat,new_table);
+				}else{
+					if(parent_node==""){
+						parent_node=attribute_name;
+					}
+					Tree.addLeaf(attributes[attribute_name][i],parent_node,new_table[0][class_defined],attribute_name);
 					attributes[attribute_name].splice(i,1);	
 					i=i-1;	
 					length=attributes[attribute_name].length;
@@ -107,15 +113,23 @@ var ID3=(function(){
 		return filter.length==0;
 	}
 	/* If the set are only two elements, there is not reason to calculate the entropy */
-	function splitSet(table_training){
-		console.log("The last are ")
-		console.dir(table_training[0]);
-		console.dir(table_training[1]);
+	function splitSet(node_value,table_training){
+		attribute_dispatch="",attribute_origin="";
+		for(var i=0;i<table_training.length;i++){
+			for(var attribute in table_training[i]){
+				if(table_training[i][attribute]==node_value){
+					attribute_origin=attribute.toString();
+					break;						
+				}	
+				attribute_dispatch=attribute.toString();
+			}
+			Tree.addLeaf(node_value,attribute_dispatch,table_training[i][class_defined],attribute_origin);			
+		}
 	}
-	function execute(repeat,table_training){
+	function execute(parent_node,repeat,table_training){
 		table_frequencies=calculateFrequencies(table_training);		
 		frequencie_class_for_set=calculateFrequencieClass(table_training);		
-		entropy_of_set=calculateEntropySet(frequencie_class_for_set);	
+		entropy_of_set=calculateEntropySet(frequencie_class_for_set);			
 		/* Calculate the entropies of each of the attributes in the set */	
 		higher_entropy=0;	
 		higher_entropy_name="";
@@ -135,16 +149,16 @@ var ID3=(function(){
 					higher_entropy_name=attribute_label_name;
 				}			
 			}
-			reduceSet(higher_entropy_name,repeat,table_training);
+			reduceSet(parent_node,higher_entropy_name,repeat,table_training);
 		}else
-			splitSet(table_training);		
+			splitSet(parent_node,table_training);		
 		
 	}
 	return{
 		init:function(data){
 			Math.log2 = Math.log2 || function(x){return Math.log(x)*Math.LOG2E;};
 			class_defined=data;
-			execute(1,table_training);
+			execute("",1,table_training);
 		},		
 		getFrequencieClass:function(){
 			console.dir(calculateFrequencieClass(table_training));
@@ -154,6 +168,10 @@ var ID3=(function(){
 		},
 		getEntropy:function(){
 			console.dir(calculateEntropySet({ total: 14, no: 4, si: 10 }));
+		},
+		getTree:function(){
+			console.dir(Tree.getStack());
+			console.dir(Tree.getBranches());
 		}
 	}
 })();
